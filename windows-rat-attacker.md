@@ -51,7 +51,7 @@
 
 
 
-### 6. 6. Security & Logs
+### 6. Security & Logs
 
 | Command        | Description           
 | ------------- |:-------------:| 
