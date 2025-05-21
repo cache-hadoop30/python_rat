@@ -91,7 +91,7 @@ Important:
 In Visual Studio Code terminal,
 1. Run the client.py (Client OS / Victim OS) 
 2. Run the server.py (Server / Attacker OS)
-3. Do the `ist of useful commands for attacker (Windows) using Remote Access Trojan (RAT)` in `server.py`  terminal:
+3. Do the above commands in `server.py`  terminal:
 
 ![image](https://github.com/user-attachments/assets/61be0116-a17a-4739-ae48-9feed7196263)
 
