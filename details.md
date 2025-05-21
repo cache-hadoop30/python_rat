@@ -147,3 +147,13 @@ if __name__ == "__main__":
     connect_to_server(SERVER_IP, PORT)
 
 ```
+
+
+
+
+---
+### WinError 10061
+
+Kapag ganiyan yung error, check yung IP. Baka mali/mismatch lang
+
+
