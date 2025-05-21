@@ -16,8 +16,10 @@ New-NetFirewallRule -DisplayName "Block Attacker" -Direction Outbound -RemoteAdd
 ### Remote Access Trojan (RAT) 
 
 Network Testing - Two machines (or VMs) on the same network
-- WINServer22-1 : Server
-- WINServer22-2 : Client / Victim
+- WINServer22-1 : Server (IP: 208.8.8.140)
+- WINServer22-2 : Client / Victim (IP: 208.8.8.141)
+
+
 
 
 
@@ -26,6 +28,10 @@ Find the **server's local IP** (ipconfig on Windows / ifconfig on Linux).
 - Attacker IP: 208.8.8.140 (IPv4 Address)
 port 5555 - firewall port
 
+
+================ Steps: ================ 
+Step 1: 
+Disable muna ang firewall at antivirus ng mga devices na gagamitin.
 
 
 Disable the Windows Security Threat (only if enabled):
@@ -46,11 +52,25 @@ Disable the Firewall of the Server
 Set-NetFirewallProfile -Profile Domain,Public,Private -Enabled False
 ```
 
+
 Ping the server IP (from client's terminal)
 ```bash
 # Command Prompt
 ping 208.8.8.140
 ```
+
+Disable the Firewall of the Client
+```bash
+netsh advfirewall set allprofiles state off
+```
+
+Ping the client IP (from server's terminal)
+```bash
+# Command Prompt
+ping 208.8.8.141
+```
+
+
 
 
 Enable telnet in Windows Powershell
